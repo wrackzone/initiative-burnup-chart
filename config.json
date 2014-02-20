@@ -1,0 +1,16 @@
+{
+   "name": "settings-sample-app",
+   "className": "CustomApp",
+   "server": "https://rally1.rallydev.com",
+   "sdk": "2.0rc2",
+   "javascript": [
+      "App.js",
+      "chartrenderer.js",
+      "lib/async.min.js",
+      "line-fitter.js",
+      "https://rally1.rallydev.com/apps/2.0rc1/lib/analytics/analytics-all.js"
+   ],
+   "css": [
+      "app.css"
+   ]
+}
