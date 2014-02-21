@@ -3,11 +3,13 @@ var app = null;
 Ext.define('CustomApp', {
 	extend: 'Rally.app.App',
 	componentCls: 'app',
-	items:{ html:'<a href="https://help.rallydev.com/apps/2.0rc2/doc/">App SDK 2.0rc2 Docs</a>'},
+	items:{ 
+		// html:'<a href="https://help.rallydev.com/apps/2.0rc2/doc/">App SDK 2.0rc2 Docs</a>'
+	},
 
 	config: {
 		defaultSettings: {
-			itemtype : 'Feature',
+			itemtype : 'Initiative',
 			items : '',
 			unittype : 'Count'
 		}
@@ -41,7 +43,9 @@ Ext.define('CustomApp', {
 		app.itemtype = app.getSetting('itemtype');
 		var unittype = app.getSetting('unittype');
 
-		items = items !== "" ? items : ['F1123','F1217','F1215','F1220'];
+		if (items=="")
+			return;
+		items = items != "" ? items : ['I2921','I2912']; // ['F1123','F1217','F1215','F1220'];
 
 		// read the features
 		var configs = _.map( items,function(item) {
@@ -52,14 +56,20 @@ Ext.define('CustomApp', {
 			};
 		});	
 
+		app.myMask = new Ext.LoadMask(Ext.getBody(), {msg:"Please wait..."});
+		app.myMask.show();
+
 		async.map( configs, app.wsapiQuery,function(err,results) {
 
 			var pis = _.map(results,function(r){ return r[0];});
+			console.log("pis",pis);
 
 			if (app.validateItems(items,pis)===false)
 				return;
 
 			async.map( [items], app.snapshotquery, function(err,results) {
+
+				console.log("snapshots",results[0].length);
 
 				var renderer = Ext.create("ChartRenderer", {
 					items : pis,
@@ -79,7 +89,7 @@ Ext.define('CustomApp', {
 				var elems = p.query("div.x-mask-msg");
 				_.each(elems, function(e) { e.remove(); });
 
-
+				app.myMask.hide();
 			});
 		});
 	},
@@ -87,16 +97,27 @@ Ext.define('CustomApp', {
 	validateItems : function ( ids,items ) {
 		var valid = true;
 
+		if (items===null||items===undefined) {
+			console.log("items not found");
+			app.myMask.hide();
+			Rally.ui.notify.Notifier.show({ message : "Items Not found!" });
+			valid = false;
+		}
+
+
 		_.each( items, function(item,x) {
-			if (item===null) {
+			if (item===undefined||item===null) {
+				console.log("id not found",ids[x]);
+				app.myMask.hide();
 				Rally.ui.notify.Notifier.show({
 					message: ids[x] + " Not found!"
 				});
 				valid = false;
 			}
 			if (item!== undefined) {
-				console.log("item",item);
 				if ((item.get("PlannedStartDate")===null)||(item.get("PlannedEndDate")===null)) {
+					console.log("no start or end date ",ids[x]);
+					app.myMask.hide();
 					Rally.ui.notify.Notifier.show({
 						message: ids[x] + " does not have a planned start or end date!"
 					});
@@ -129,6 +150,7 @@ Ext.define('CustomApp', {
 	snapshotquery : function(items,callback) {
 
 		// console.log(app.getContext().getProject().ObjectID);
+		console.log("Snapshotquery for Items",items);
 
 		var storeConfig = {
 			find : {

@@ -7,7 +7,6 @@ Ext.define("ChartRenderer", function() {
         config : {
             items : [],
             snapshots : [],
-            // calculator : null
         },
 
         constructor:function(config) {
@@ -20,6 +19,8 @@ Ext.define("ChartRenderer", function() {
 
             Ext.define("MyBurnCalculator", {
                 extend: "Rally.data.lookback.calculator.TimeSeriesCalculator",
+                acceptedData : [],
+                pointsOffset : [],
 
                 getMetrics : function() {
                     var metrics = [];
@@ -42,43 +43,73 @@ Ext.define("ChartRenderer", function() {
                             start : item.get("PlannedStartDate"),
                             end : item.get("PlannedEndDate")
                         });
-
+                    });
+                    metrics.push({
+                        as : "Total-Count",
+                        f : 'sum',
+                        field : 'LeafStoryCount'
+                    });
+                    metrics.push({
+                        as : "Total-Accepted",
+                        f : 'sum',
+                        field : 'AcceptedLeafStoryCount',
                     });
                     return metrics;
                 },
 
-                projectValue : function (itemid,row, index, summaryMetrics, seriesData) {
+                projectValue : function (start,end,itemid,row, index, summaryMetrics, seriesData) {
                     var that = this;
+
+                    that.acceptedData[itemid] = (that.acceptedData[itemid] == undefined || that.acceptedData[itemid] == null) ? [] : that.acceptedData[itemid];
+                    var ad = that.acceptedData[itemid];
                     if (index === 0) {
                         datesData = _.pluck(seriesData,"label");
                         var today = new Date();
                         var li = datesData.length-1;
-                        acceptedPointsData = _.pluck(seriesData,itemid+"-Accepted");
-                        acceptedPointsData = _.filter(acceptedPointsData, function(d,i) { return new Date(Date.parse(datesData[i])) < today; });
+                        ad = _.pluck(seriesData,itemid+"-Accepted");
+                        ad = _.filter(ad, function(d,i) { 
+                            return d != null && new Date(Date.parse(datesData[i])) < today; 
+                        });
                         
                         // calculate an offset between the projected value and the actual accepted values.
-                        var lastAccepted = acceptedPointsData[acceptedPointsData.length-1];
-                        var lastProjected = linearProject( acceptedPointsData, acceptedPointsData.length-1);
-                        that.pointsOffset = lastAccepted-lastProjected;    
+                        var lastAccepted = ad[ad.length-1];
+                        var lastProjected = linearProject( ad, ad.length-1);
+                        that.pointsOffset[itemid] = lastAccepted-lastProjected;    
+                        that.acceptedData[itemid] = ad;
                     }
-                    var y = linearProject( acceptedPointsData, index) + that.pointsOffset;
+
+                    // return null if date for point is outside planned start/end
+                    if (start != null && end != null) {
+                        var d = new Date(Date.parse(seriesData[index].label));
+                        if (d < start || d > end)
+                            return null;
+                    }
+
+                    var y = linearProject( ad, index) + that.pointsOffset[itemid];
                     return Math.round(y * 100) / 100;
                 },
 
                 getDerivedFieldsAfterSummary : function () {
-                    return _.map(self.items, function(item) {
-                        console.log("-item",item);
-                        return {
-                            // item : item,
-                            itemid : item.get("FormattedID"),
-                            as : item.get("FormattedID")+"-Projection",
-                            f : function (row, index, summaryMetrics, seriesData) {
-                                console.log("this",this);
-                                // return 0;
-                                return self.projectValue(this.itemid,row,index,summaryMetrics,seriesData);
-                            }
-                        };
+                    var that = this;
+                    var fields =
+                        _.map(self.items, function(item) {
+                            return {
+                                start : item.get("PlannedStartDate"),
+                                end : item.get("PlannedEndDate"),
+                                itemid : item.get("FormattedID"),
+                                as : item.get("FormattedID")+"-Projection",
+                                f : function (row, index, summaryMetrics, seriesData) {
+                                    return that.projectValue(this.start,this.end,this.itemid,row,index,summaryMetrics,seriesData);
+                                }
+                            };
+                        });
+                    fields.push({
+                        as : "Total-Projection",
+                        f : function (row, index, summaryMetrics, seriesData) {
+                            return that.projectValue(null,null,"Total",row,index,summaryMetrics,seriesData);
+                        }
                     });
+                    return fields;
                 },
             }
             );
@@ -102,7 +133,7 @@ Ext.define("ChartRenderer", function() {
                 holidays: [],
                 workDays: 'Monday,Tuesday,Wednesday,Thursday,Friday,Saturday,Sunday'
             };
-            console.log("config df",config.deriveFieldsAfterSummary);
+            //console.log("config df",config.deriveFieldsAfterSummary);
 
             var start = _.min( _.map(self.items,function(i){return i.get("PlannedStartDate");}));
             var end   = _.max( _.map(self.items,function(i){return i.get("PlannedEndDate");}));
@@ -118,8 +149,17 @@ Ext.define("ChartRenderer", function() {
                 return {
                     name : m.as,
                     type : "line",
+                    thetitle : m.thetitle
                 };
             }), function(c) { hcConfig.push(c);});
+            _.each( _.map( config.deriveFieldsAfterSummary, function(m) { 
+                return {
+                    name : m.as,
+                    type : "line",
+                    dashStyle : "dash"
+                };
+            }), function(c) { hcConfig.push(c);});
+
             var hc = lumenize.arrayOfMaps_To_HighChartsSeries(calculator.getResults().seriesData, hcConfig);
             var metrics = calc.getMetrics();
             // nullify data values that are outside of the planned start/end date range.
@@ -159,20 +199,23 @@ Ext.define("ChartRenderer", function() {
                 plotOptions: {
                     line: {
                         events: { 
-                            legendItemClick : function(a,b,c) {
-                                var prefix = this.name.split("-")[0];
-                                var series = this.chart.series;
-                                var seriesIndex = this.index;
-                                _.each( series, function(s,i) {
-                                    if (i!=seriesIndex) {
+                            legendItemClick : 
+                                function(a,b,c) {
+                                    // hide all other series
+                                    var prefix = this.name.split("-")[0];
+                                    var series = this.chart.series;
+                                    _.each( series, function(s,i) {
                                         var otherPrefix = s.name.split("-")[0];
-                                        if (prefix===otherPrefix)
-                                            series[i].visible ? series[i].hide() : series[i].show();
-                                    }
-
-                                });
+                                        (prefix===otherPrefix) ? s.show() : s.hide();
+                                    });
+                                    a.preventDefault();
+                                    // set the chart title based on selection.
+                                    var item = _.find(self.items,function(i){
+                                        return i.get("FormattedID") === prefix;
+                                    });
+                                    this.chart.setTitle( { text : (item != null ? item.get("Name") : "Total")});
+                                }
                             }
-                        }
                     },
                     series: {
                         marker: {
