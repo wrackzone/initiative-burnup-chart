@@ -78,14 +78,18 @@ Ext.define("ChartRenderer", function() {
                         that.acceptedData[itemid] = ad;
                     }
 
+                    var y = linearProject( ad, index) + that.pointsOffset[itemid];
+
                     // return null if date for point is outside planned start/end
                     if (start != null && end != null) {
+                        // console.log(start,end, new Date(Date.parse(seriesData[index].label)), y);
                         var d = new Date(Date.parse(seriesData[index].label));
-                        if (d < start || d > end)
+                        if (d < start || d > end) {
+                            // console.log(itemid,"null");
                             return null;
+                        }
                     }
 
-                    var y = linearProject( ad, index) + that.pointsOffset[itemid];
                     return Math.round(y * 100) / 100;
                 },
 
@@ -93,15 +97,22 @@ Ext.define("ChartRenderer", function() {
                     var that = this;
                     var fields =
                         _.map(self.items, function(item) {
-                            return {
-                                start : item.get("PlannedStartDate"),
-                                end : item.get("PlannedEndDate"),
+                            var fieldMetric = 
+                             {
                                 itemid : item.get("FormattedID"),
                                 as : item.get("FormattedID")+"-Projection",
                                 f : function (row, index, summaryMetrics, seriesData) {
-                                    return that.projectValue(this.start,this.end,this.itemid,row,index,summaryMetrics,seriesData);
+                                    // console.log("this",this);
+                                    var id = this.itemid;
+                                    var item = _.find(self.items,function(i){
+                                        return i.get("FormattedID") === id;
+                                    });
+                                    var pstart = item != null ? item.get("PlannedStartDate") : null;
+                                    var pend = item != null ? item.get("PlannedEndDate") : null;
+                                    return that.projectValue(pstart,pend,this.itemid,row,index,summaryMetrics,seriesData);
                                 }
                             };
+                            return fieldMetric;
                         });
                     fields.push({
                         as : "Total-Projection",
@@ -219,6 +230,7 @@ Ext.define("ChartRenderer", function() {
                                     _.each( series, function(s,i) {
                                         var otherPrefix = s.name.split("-")[0];
                                         (prefix===otherPrefix) ? s.show() : s.hide();
+                                        // console.log("Series:",s.name,s.visible);
                                     });
                                     a.preventDefault();
                                     // set the chart title based on selection.
