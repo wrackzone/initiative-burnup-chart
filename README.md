@@ -3,6 +3,12 @@ initiative-burnup-chart
 
 ## Overview
 
+This app allows you to select a collection of arbitrary initiatives (or other portfolio item types) and create a burnup chart showing the combined progress against those initiatives including a projection line. In addition you can then toggle the chart through the selected items.
+
+To configure select the Configure menu (gear icon) and select "Edit App Settings".
+
+![screenshot](https://raw.github.com/wrackzone/initiative-burnup-chart/master/screenshot.png)
+
 
 ## License
 
