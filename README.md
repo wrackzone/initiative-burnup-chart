@@ -10,6 +10,10 @@ To configure select the Configure menu (gear icon) and select "Edit App Settings
 ![screenshot](https://raw.github.com/wrackzone/initiative-burnup-chart/master/screenshot.png)
 
 
+Edit App Settings
+
+![screenshot](https://raw.github.com/wrackzone/initiative-burnup-chart/master/config.png)
+
 ## License
 
 AppTemplate is released under the MIT license.  See the file [LICENSE](./LICENSE) for the full text.
