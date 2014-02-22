@@ -37,15 +37,16 @@ Ext.define('CustomApp', {
 
 	launch: function() {
 		//Write app code here
+		console.log("launch");
 		app = this;
 
 		var items = app.getSetting('items').split(",");
 		app.itemtype = app.getSetting('itemtype');
 		var unittype = app.getSetting('unittype');
 
+		items = items != "" ? items : ['I2921','I2912','I2968','I2962']; // ['F1123','F1217','F1215','F1220'];
 		if (items=="")
 			return;
-		items = items != "" ? items : ['I2921','I2912']; // ['F1123','F1217','F1215','F1220'];
 
 		// read the features
 		var configs = _.map( items,function(item) {

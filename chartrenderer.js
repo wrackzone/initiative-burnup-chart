@@ -147,6 +147,7 @@ Ext.define("ChartRenderer", function() {
             var hcConfig = [{ name : "label" }];
             _.each( _.map( calc.getMetrics(), function(m) { 
                 return {
+                    visible : m.as.split("-")[0] != "Total" ? false : true,
                     name : m.as,
                     type : "line",
                     thetitle : m.thetitle
@@ -154,6 +155,7 @@ Ext.define("ChartRenderer", function() {
             }), function(c) { hcConfig.push(c);});
             _.each( _.map( config.deriveFieldsAfterSummary, function(m) { 
                 return {
+                    visible : m.as.split("-")[0] != "Total" ? false : true,
                     name : m.as,
                     type : "line",
                     dashStyle : "dash"
@@ -181,6 +183,16 @@ Ext.define("ChartRenderer", function() {
             var tickInterval = series[1].data.length <= (7*20) ? 7 : (series[1].data.length / 20);
 
             var extChart = Ext.create('Rally.ui.chart.Chart', {
+            listeners : {
+                // afterrender : function(c,e) {
+                //     console.log("this",this);
+                //     _.each(this.chartData.series,function(series){
+                //         console.log("series",series);
+                //         if (series.name.split(",")[0] != "Total")
+                //             series.hide();
+                //     })
+                // }
+            },
             columnWidth : 1,
             itemId : id,
             chartData: {
