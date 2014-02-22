@@ -191,7 +191,7 @@ Ext.define("ChartRenderer", function() {
         createChart : function(id,title) {
 
             var series = self.getChartConfig();
-            var tickInterval = series[1].data.length <= (7*20) ? 7 : (series[1].data.length / 20);
+            var tickInterval = series[1].data.length <= (7*20) ? 7 : (series[1].data.length / 10);
 
             var extChart = Ext.create('Rally.ui.chart.Chart', {
             listeners : {
@@ -216,6 +216,9 @@ Ext.define("ChartRenderer", function() {
                 chart: {
                 },
                 title: {
+                style : {
+                    fontSize: '10px'
+                },
                 text: title,
                 x: -20 //center
                 },
